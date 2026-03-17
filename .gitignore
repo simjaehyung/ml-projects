@@ -68,6 +68,11 @@ web_ui_dashboard/share/project_data/logs/
 # 백업/압축 파일
 *.zip
 
+# 동영상 (GitHub 100MB 제한)
+*.mp4
+*.mov
+*.avi
+
 # image_processing - 생성된 이미지 도메인 데이터셋
 image_processing/data/raw/image_domain_dataset/
 
