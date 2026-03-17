@@ -1,0 +1,31 @@
+[
+  {
+    "image_id": "3656432b",
+    "original_image_path": "images/original/jean3.webp",
+    "label_json_path": "labels/jean3_3656432b.json",
+    "augmented_image_paths": [
+      "images/augmented/jean3_3656432b_aug0.webp",
+      "images/augmented/jean3_3656432b_aug1.webp",
+      "images/augmented/jean3_3656432b_aug2.webp",
+      "images/augmented/jean3_3656432b_aug3.webp",
+      "images/augmented/jean3_3656432b_aug4.webp"
+    ],
+    "created_at": "2026-03-16T14:39:22.903775"
+  },
+  {
+    "image_id": "72246b70",
+    "original_image_path": "images/original/jean3.webp",
+    "label_json_path": "labels/jean3_72246b70.json",
+    "augmented_image_paths": [
+      "images/augmented/jean3_72246b70_aug0.webp",
+      "images/augmented/jean3_72246b70_aug1.webp",
+      "images/augmented/jean3_72246b70_aug2.webp",
+      "images/augmented/jean3_72246b70_aug3.webp",
+      "images/augmented/jean3_72246b70_aug4.webp",
+      "images/augmented/jean3_72246b70_aug5.webp",
+      "images/augmented/jean3_72246b70_aug6.webp",
+      "images/augmented/jean3_72246b70_aug7.webp"
+    ],
+    "created_at": "2026-03-16T14:47:53.598121"
+  }
+]

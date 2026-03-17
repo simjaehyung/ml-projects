@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Space Visualizer</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+        }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        header {
+            text-align: center;
+            padding: 4rem 2rem 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(56,189,248,0.15) 0%, transparent 50%);
+            z-index: 0;
+            animation: pulse 10s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        h1 {
+            margin: 0;
+            font-size: 3.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #38bdf8, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -1px;
+        }
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            font-weight: 300;
+            position: relative;
+            z-index: 1;
+            margin-top: 10px;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            padding: 20px 40px 60px;
+            position: relative;
+            z-index: 1;
+        }
+        .plot-box {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+            width: calc(33.333% - 20px);
+            min-width: 400px;
+            padding: 25px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .plot-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 60px -12px rgba(0,0,0,0.7);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            font-weight: 500;
+            color: var(--text-main);
+            position: relative;
+            display: inline-block;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 10%;
+            width: 80%;
+            height: 2px;
+            background: linear-gradient(to right, transparent, var(--accent), transparent);
+        }
+        .plot {
+            width: 100%;
+            height: 450px;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        /* Loader */
+        .loader-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 40vh;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(56,189,248,0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 1400px) {
+            .plot-box { width: calc(50% - 15px); }
+        }
+        @media (max-width: 900px) {
+            .plot-box { width: 100%; min-width: unset; }
+        }
+        
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Color Space Visualizer</h1>
+        <p class="subtitle">Interactive 3D representations of ~5000 colors in RGB, HSV, and YCbCr spaces</p>
+    </header>
+
+    <div class="loader-container" id="loader">
+        <div class="spinner"></div>
+        <div style="font-weight: 300;">데이터를 계산하고 3D 화면을 렌더링하는 중입니다...</div>
+    </div>
+
+    <div class="container" id="plots-container" style="display:none;">
+        <div class="plot-box">
+            <h2>RGB Space</h2>
+            <div id="rgb-plot" class="plot"></div>
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 15px;">
+                빛의 삼원색(Red, Green, Blue)을 데카르트 좌표계로 표현한 공간입니다.
+            </p>
+        </div>
+        <div class="plot-box">
+            <h2>HSV Space</h2>
+            <div id="hsv-plot" class="plot"></div>
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 15px;">
+                색상(Hue), 채도(Saturation), 명도(Value)를 기반으로 한 원통형 좌표계입니다.
+            </p>
+        </div>
+        <div class="plot-box">
+            <h2>YCbCr Space</h2>
+            <div id="ycbcr-plot" class="plot"></div>
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 15px;">
+                밝기 정보(Luma, Y)와 색차 정보(Cb, Cr)로 분리한 공간으로 영상 압축에 주로 쓰입니다.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const step = 15; // 약 4913개의 색상 포인트 생성
+        let rgb_x = [], rgb_y = [], rgb_z = [];
+        let hsv_x = [], hsv_y = [], hsv_z = [];
+        let ycbcr_x = [], ycbcr_y = [], ycbcr_z = [];
+        let markerColors = [];
+        let hoverTexts = [];
+
+        function rgbToHsv(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            let max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, v = max;
+            let d = max - min;
+            s = max === 0 ? 0 : d / max;
+            if (max === min) {
+                h = 0;
+            } else {
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+            return [h, s, v];
+        }
+
+        function rgbToYcbcr(r, g, b) {
+            let y = 0.299 * r + 0.587 * g + 0.114 * b;
+            let cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+            let cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+            return [y, cb, cr];
+        }
+
+        setTimeout(() => {
+            for (let r = 0; r <= 255; r += step) {
+                for (let g = 0; g <= 255; g += step) {
+                    for (let b = 0; b <= 255; b += step) {
+                        const colorStr = `rgb(${r},${g},${b})`;
+                        markerColors.push(colorStr);
+                        
+                        // RGB
+                        rgb_x.push(r); rgb_y.push(g); rgb_z.push(b);
+                        
+                        // HSV
+                        const [h, s, v] = rgbToHsv(r, g, b);
+                        const angle = h * 2 * Math.PI;
+                        hsv_x.push(s * Math.cos(angle));
+                        hsv_y.push(s * Math.sin(angle));
+                        hsv_z.push(v);
+                        
+                        // YCbCr
+                        const [y, cb, cr] = rgbToYcbcr(r, g, b);
+                        ycbcr_x.push(cb); ycbcr_y.push(cr); ycbcr_z.push(y);
+                        
+                        hoverTexts.push(`R: ${r}, G: ${g}, B: ${b}`);
+                    }
+                }
+            }
+
+            const commonMarker = { 
+                size: 5, 
+                color: markerColors, 
+                opacity: 0.8,
+                line: { width: 0 }
+            };
+
+            const sceneLayout = {
+                xaxis: { backgroundcolor: "rgba(30, 41, 59, 0.4)", gridcolor: "rgba(255, 255, 255, 0.1)", showbackground: true, zerolinecolor: "rgba(255,255,255,0.2)" },
+                yaxis: { backgroundcolor: "rgba(30, 41, 59, 0.4)", gridcolor: "rgba(255, 255, 255, 0.1)", showbackground: true, zerolinecolor: "rgba(255,255,255,0.2)" },
+                zaxis: { backgroundcolor: "rgba(30, 41, 59, 0.4)", gridcolor: "rgba(255, 255, 255, 0.1)", showbackground: true, zerolinecolor: "rgba(255,255,255,0.2)" },
+                camera: { eye: {x: 1.5, y: 1.5, z: 1.2} },
+                aspectmode: "cube"
+            };
+
+            const layoutBase = {
+                margin: { l: 0, r: 0, b: 0, t: 0 },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#94a3b8' },
+                hovermode: 'closest'
+            };
+
+            // RGB Config
+            let layoutRgb = JSON.parse(JSON.stringify(layoutBase));
+            layoutRgb.scene = JSON.parse(JSON.stringify(sceneLayout));
+            layoutRgb.scene.xaxis.title = 'Red'; layoutRgb.scene.xaxis.range = [0, 255];
+            layoutRgb.scene.yaxis.title = 'Green'; layoutRgb.scene.yaxis.range = [0, 255];
+            layoutRgb.scene.zaxis.title = 'Blue'; layoutRgb.scene.zaxis.range = [0, 255];
+            
+            // HSV Config
+            let layoutHsv = JSON.parse(JSON.stringify(layoutBase));
+            layoutHsv.scene = JSON.parse(JSON.stringify(sceneLayout));
+            layoutHsv.scene.xaxis.title = 'S * cos(H)'; layoutHsv.scene.xaxis.range = [-1, 1];
+            layoutHsv.scene.yaxis.title = 'S * sin(H)'; layoutHsv.scene.yaxis.range = [-1, 1];
+            layoutHsv.scene.zaxis.title = 'Value (V)'; layoutHsv.scene.zaxis.range = [0, 1];
+
+            // YCbCr Config
+            let layoutYcbcr = JSON.parse(JSON.stringify(layoutBase));
+            layoutYcbcr.scene = JSON.parse(JSON.stringify(sceneLayout));
+            layoutYcbcr.scene.xaxis.title = 'Cb (Blue Diff)'; layoutYcbcr.scene.xaxis.range = [0, 255];
+            layoutYcbcr.scene.yaxis.title = 'Cr (Red Diff)'; layoutYcbcr.scene.yaxis.range = [0, 255];
+            layoutYcbcr.scene.zaxis.title = 'Luma (Y)'; layoutYcbcr.scene.zaxis.range = [0, 255];
+
+            const traceRgb = { x: rgb_x, y: rgb_y, z: rgb_z, mode: 'markers', marker: commonMarker, type: 'scatter3d', hoverinfo: 'text', text: hoverTexts };
+            const traceHsv = { x: hsv_x, y: hsv_y, z: hsv_z, mode: 'markers', marker: commonMarker, type: 'scatter3d', hoverinfo: 'text', text: hoverTexts };
+            const traceYcbcr = { x: ycbcr_x, y: ycbcr_y, z: ycbcr_z, mode: 'markers', marker: commonMarker, type: 'scatter3d', hoverinfo: 'text', text: hoverTexts };
+
+            const config = { responsive: true, displayModeBar: false };
+
+            Plotly.newPlot('rgb-plot', [traceRgb], layoutRgb, config);
+            Plotly.newPlot('hsv-plot', [traceHsv], layoutHsv, config);
+            Plotly.newPlot('ycbcr-plot', [traceYcbcr], layoutYcbcr, config);
+
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('plots-container').style.display = 'flex';
+        }, 500);
+    </script>
+</body>
+</html>

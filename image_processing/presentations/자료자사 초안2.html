@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Space Visualizer</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            padding: 4rem 2rem 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, transparent 50%);
+            z-index: 0;
+            animation: pulse 10s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 3.5rem;
+            background: linear-gradient(to right, #38bdf8, #818cf8, #c084fc);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            z-index: 1;
+            letter-spacing: -1px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            font-weight: 300;
+            position: relative;
+            z-index: 1;
+            margin-top: 10px;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            padding: 20px 40px 60px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .plot-box {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            width: calc(33.333% - 20px);
+            min-width: 400px;
+            padding: 25px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .plot-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .full-width-box {
+            width: 90%;
+            max-width: 1400px;
+        }
+
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            font-weight: 500;
+            color: var(--text-main);
+            position: relative;
+            display: inline-block;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 10%;
+            width: 80%;
+            height: 2px;
+            background: linear-gradient(to right, transparent, var(--accent), transparent);
+        }
+
+        .plot {
+            width: 100%;
+            height: 450px;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* Grayscale Comparison Styles */
+        .grayscale-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .gray-method {
+            flex: 1;
+            min-width: 300px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .gray-method h3 {
+            margin-top: 0;
+            color: #c084fc;
+        }
+
+        .image-placeholder {
+            width: 100%;
+            height: 300px;
+            background: #2a2a2a;
+            border: 2px dashed #555;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .image-placeholder img,
+        .image-placeholder canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .formula {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #818cf8;
+        }
+
+        .explanation {
+            text-align: left;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: var(--text-muted);
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            text-align: center;
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        input[type="file"] {
+            /* Input file is natively ugly, keep it hidden but style the label as the button */
+            display: none;
+        }
+
+        .upload-btn,
+        .action-btn {
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+
+        .upload-btn:hover,
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
+        }
+
+        .action-btn.active {
+            box-shadow: 0 0 0 2px white, 0 0 15px #c084fc;
+            background: linear-gradient(135deg, #818cf8, #c084fc);
+        }
+
+        .reset-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+            box-shadow: none;
+        }
+
+        .reset-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        /* Loader */
+        .loader-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 40vh;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(56, 189, 248, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--accent);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 1400px) {
+            .plot-box {
+                width: calc(50% - 15px);
+            }
+
+            .plot-box.full-width-box {
+                width: 90%;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .plot-box {
+                width: 100%;
+                min-width: unset;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Color Space Visualizer</h1>
+        <p class="subtitle">Interactive 3D representations of ~5000 colors & Grayscale Methods</p>
+    </header>
+
+    <div class="loader-container" id="loader">
+        <div class="spinner"></div>
+        <div style="font-weight: 300;">데이터를 계산하고 3D 화면을 렌더링하는 중입니다...</div>
+    </div>
+
+    <!-- The container was previously set to display:none and only shown AFTER Plotly loaded. 
+         We move the grayscale UI OUTSIDE of the plots-container so the upload button is immediately visible! -->
+
+    <h2 style="text-align:center; color: #fff; margin-top: 50px;">1. Basic Color Spaces (3D)</h2>
+<div class="container" id="plots-container" style="display:none;">
+<div class="plot-box full-width-box" style="margin-bottom: 20px;">
+            <h2>3D RGB Space Color Mapping</h2>
+            <div style="text-align:center; color: var(--text-muted); font-size: 1rem; margin-bottom: 15px;">
+                Apply the Grayscale algorithms to the Plotly 3D Point Cloud to see the mathematical color shift in
+                real-time.
+            </div>
+
+            <div class="controls">
+                <button id="btn-reset" class="action-btn reset-btn active">Original RGB Colors</button>
+                <button id="btn-method-a" class="action-btn">Apply Method A (Standard)</button>
+                <button id="btn-method-b" class="action-btn">Apply Method B (Average)</button>
+            </div>
+
+            <div id="rgb-plot" class="plot"></div>
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 15px;">
+                빛의 삼원색(Red, Green, Blue)을 데카르트 좌표계로 표현한 공간입니다. 버튼을 눌러 점들의 색상을 흑백 공식으로 변환해보세요.
+            </p>
+        </div>
+
+        <div class="plot-box">
+            <h2>HSV Space</h2>
+            <div id="hsv-plot" class="plot"></div>
+        </div>
+        <div class="plot-box">
+            <h2>YCbCr Space</h2>
+            <div id="ycbcr-plot" class="plot"></div>
+        </div>
+        <div class="plot-box">
+            <h2>CIELAB (Lab) Space</h2>
+            <div id="lab-plot" class="plot"></div>
+            <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-top: 15px;">
+                CIE $L^*a^*b^*$ 공간은 인간의 시각 인지와 유사한 균일 색공간(Perceptually Uniform Space)입니다. 밝기($L^*$)와 두 가지 색상 축($a^*$, $b^*$)으로 구성됩니다.
+            </p>
+        </div>
+
+</div>
+
+<h2 style="text-align:center; color: #fff; margin-top: 50px;">2. Color Transformations & Robustness</h2>
+<div class="container" id="grayscale-section">
+        <div class="plot-box full-width-box" style="margin-bottom: 20px;">
+            <h2>RGB to Grayscale Conversion</h2>
+
+            <div style="text-align:center; color: var(--text-muted); font-size: 1rem; margin-bottom: 15px;">
+                Upload any image to see how it converts to black and white using two different mathematical approaches.
+            </div>
+
+            <div class="controls">
+                <label for="imageUpload" class="upload-btn">📁 Upload Local Image</label>
+                <input type="file" id="imageUpload" accept="image/*">
+            </div>
+
+            <div class="grayscale-container">
+                <div class="gray-method">
+                    <h3>Original Image</h3>
+                    <div class="image-placeholder" id="original-img-container">
+                        <canvas id="original-canvas"></canvas>
+                        <span id="original-text">Original Image</span>
+                    </div>
+                </div>
+
+                <div class="gray-method">
+                    <h3>Method A (Standard)</h3>
+                    <div class="formula">Y = 0.299R + 0.587G + 0.114B</div>
+                    <div class="image-placeholder">
+                        <canvas id="method-a-canvas"></canvas>
+                        <span id="method-a-text">Standard Grayscale</span>
+                    </div>
+                    <div class="explanation">
+                        <strong>Why this looks more "natural":</strong><br>
+                        The human eye is not equally sensitive to all colors (mostly to Green, least to Blue). Method A
+                        accounts for human biology by giving Green the highest weight (58.7%) and Blue the lowest
+                        (11.4%), creating an image that matches our perceived brightness perfectly.
+                    </div>
+                </div>
+
+                <div class="gray-method">
+                    <h3>Method B (Averaging)</h3>
+                    <div class="formula">I = (R + G + B) / 3</div>
+                    <div class="image-placeholder">
+                        <canvas id="method-b-canvas"></canvas>
+                        <span id="method-b-text">Average Grayscale</span>
+                    </div>
+                    <div class="explanation">
+                        <strong>Why this falls short:</strong><br>
+                        This method treats all color channels equally. A pure bright yellow will convert to the exact
+                        same average gray as a pure deep blue. Because this ignores human perception, the resulting
+                        image often looks strangely flattened with incorrect contrast.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    
+<div class="container" id="lighting-robustness-section" style="padding-top:0;">
+
+
+        <!-- NEW LIGHTING ROBUSTNESS EXPERIMENT -->
+        <div class="plot-box full-width-box" style="margin-bottom: 20px;">
+            <h2>Lighting Robustness: Diagonal vs. Axial Scaling</h2>
+            <div style="text-align:center; color: var(--text-muted); font-size: 1rem; margin-bottom: 25px;">
+                How does changing brightness ($k$) affect the mathematical position of colors in their 3D spaces?
+            </div>
+
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <!-- Left: Controls & Theory -->
+                <div
+                    style="flex: 1; min-width: 320px; background: rgba(0,0,0,0.2); padding: 20px; border-radius: 12px; display: flex; flex-direction: column;">
+                    <h3 style="margin-top:0; color: #38bdf8;">The Math of Brightness</h3>
+
+                    <div
+                        style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <strong style="color:#c084fc;">RGB Space (Diagonal vector scaling)</strong><br>
+                        <code
+                            style="display:block; margin: 10px 0; color:#818cf8; font-size: 1.1rem;">[R', G', B'] = k * [R, G, B]</code>
+                        <span style="font-size: 0.9rem; color: var(--text-muted);">
+                            Requires 3 multiplications per pixel. Colors shift diagonally towards the $[255,255,255]$
+                            white corner or the origin $[0,0,0]$.
+                        </span>
+                    </div>
+
+                    <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px;">
+                        <strong style="color:#c084fc;">HSV Space (Axial scalar scaling)</strong><br>
+                        <code style="display:block; margin: 10px 0; color:#818cf8; font-size: 1.1rem;">V' = k * V</code>
+                        <span style="font-size: 0.9rem; color: var(--text-muted);">
+                            Requires 1 multiplication. Hue (X/Y position) is perfectly preserved. The color simply moves
+                            straight up or down the Z-axis.
+                        </span>
+                    </div>
+
+                    <div style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <label for="light-slider"
+                            style="display:flex; justify-content: space-between; margin-bottom: 15px; font-weight: 500; font-size: 1.1rem;">
+                            <span>Brightness Multiplier (k):</span>
+                            <span id="k-value"
+                                style="color:#38bdf8; font-weight: bold; background: rgba(56,189,248,0.2); padding: 2px 10px; border-radius: 12px;">1.00</span>
+                        </label>
+                        <input type="range" id="light-slider" min="0" max="2" step="0.05" value="1"
+                            style="width: 100%; cursor: pointer;">
+
+                        <img id="jean-source" src="data:image/png;base64,..." style="display:none;">
+                        <div id="jean-error-msg"
+                            style="display:none; color: #f87171; font-size: 0.9rem; margin-top: 10px;">
+                            ⚠ 로컬 환경 보안 제한(CORS)으로 이미지를 분석할 수 없습니다. 이미지를 웹 서버 환경에서 열거나 로컬 보안 설정을 허용해야 합니다.
+                        </div>
+
+                        <!-- Mini Canvases -->
+                        <div style="display: flex; gap: 10px; margin-top: 25px; justify-content: space-between;">
+                            <div style="flex:1; text-align:center;">
+                                <div style="font-size: 0.8rem; margin-bottom: 8px; color: var(--text-muted);">Original
+                                </div>
+                                <canvas id="jean-orig-canvas"
+                                    style="width: 100%; max-width: 120px; border: 1px solid #555; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></canvas>
+                            </div>
+                            <div style="flex:1; text-align:center;">
+                                <div style="font-size: 0.8rem; margin-bottom: 8px; color: #818cf8;">RGB Scaled</div>
+                                <canvas id="jean-rgb-canvas"
+                                    style="width: 100%; max-width: 120px; border: 1px solid #555; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></canvas>
+                            </div>
+                            <div style="flex:1; text-align:center;">
+                                <div style="font-size: 0.8rem; margin-bottom: 8px; color: #c084fc;">HSV Scaled</div>
+                                <canvas id="jean-hsv-canvas"
+                                    style="width: 100%; max-width: 120px; border: 1px solid #555; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: 3D Plots -->
+                <div
+                    style="flex: 2; display: flex; gap: 10px; min-width: 600px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 12px;">
+                    <div style="flex: 1; height: 500px; position:relative;">
+                        <div id="jean-rgb-3d" style="width:100%; height:100%;"></div>
+                        <h4
+                            style="position:absolute; bottom:10px; left:0; width:100%; text-align:center; margin:0; pointer-events:none; text-shadow: 0 2px 4px rgba(0,0,0,0.8); color: #818cf8;">
+                            Diagonal Shift (RGB)</h4>
+                    </div>
+                    <div
+                        style="flex: 1; height: 500px; position:relative; border-left: 1px solid rgba(255,255,255,0.05);">
+                        <div id="jean-hsv-3d" style="width:100%; height:100%;"></div>
+                        <h4
+                            style="position:absolute; bottom:10px; left:0; width:100%; text-align:center; margin:0; pointer-events:none; text-shadow: 0 2px 4px rgba(0,0,0,0.8); color: #c084fc;">
+                            Axial Shift (HSV)</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
+</div>
+
+<script>
+        // --- 1. Grayscale Conversion Logic (2D UI) ---
+        const imageUpload = document.getElementById('imageUpload');
+        const origCanvas = document.getElementById('original-canvas');
+        const origCtx = origCanvas.getContext('2d');
+        const aCanvas = document.getElementById('method-a-canvas');
+        const aCtx = aCanvas.getContext('2d');
+        const bCanvas = document.getElementById('method-b-canvas');
+        const bCtx = bCanvas.getContext('2d');
+
+        imageUpload.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Hide placeholder text
+            document.getElementById('original-text').style.display = 'none';
+            document.getElementById('method-a-text').style.display = 'none';
+            document.getElementById('method-b-text').style.display = 'none';
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const img = new Image();
+                img.onload = function () {
+                    // Set canvas sizes
+                    origCanvas.width = img.width;
+                    origCanvas.height = img.height;
+                    aCanvas.width = img.width;
+                    aCanvas.height = img.height;
+                    bCanvas.width = img.width;
+                    bCanvas.height = img.height;
+
+                    // Draw original
+                    origCtx.drawImage(img, 0, 0);
+
+                    // Get image data
+                    const imageData = origCtx.getImageData(0, 0, img.width, img.height);
+                    const data = imageData.data;
+
+                    // Create data for Method A and Method B
+                    const aData = new ImageData(img.width, img.height);
+                    const bData = new ImageData(img.width, img.height);
+
+                    // Process pixel by pixel
+                    // data array is [R, G, B, A, R, G, B, A, ...]
+                    for (let i = 0; i < data.length; i += 4) {
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+                        const a = data[i + 3];
+
+                        // Method A: Standard Grayscale (Luma formula)
+                        // Y = 0.299R + 0.587G + 0.114B
+                        const grayA = (0.299 * r) + (0.587 * g) + (0.114 * b);
+                        aData.data[i] = grayA;
+                        aData.data[i + 1] = grayA;
+                        aData.data[i + 2] = grayA;
+                        aData.data[i + 3] = a;
+
+                        // Method B: Average
+                        // I = (R + G + B) / 3
+                        const grayB = (r + g + b) / 3;
+                        bData.data[i] = grayB;
+                        bData.data[i + 1] = grayB;
+                        bData.data[i + 2] = grayB;
+                        bData.data[i + 3] = a;
+                    }
+
+                    // Put processed data back to canvases
+                    aCtx.putImageData(aData, 0, 0);
+                    bCtx.putImageData(bData, 0, 0);
+                }
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        });
+
+        // Load a default demo image if desired, or let user upload. We'll rely on upload for now.
+
+
+        // --- 2. 3D Plotly Logic ---
+        const step = 15; // 약 4913개의 색상 포인트 생성
+        let rgb_x = [], rgb_y = [], rgb_z = [];
+        let hsv_x = [], hsv_y = [], hsv_z = [];
+        let ycbcr_x = [], ycbcr_y = [], ycbcr_z = [];
+        let markerColors = [];
+        let hoverTexts = [];
+
+        
+        // CIELAB conversion
+        let lab_x = [], lab_y = [], lab_z = [];
+        
+        function rgbToXyz(r, g, b) {
+            let _r = r / 255.0;
+            let _g = g / 255.0;
+            let _b = b / 255.0;
+
+            _r = _r > 0.04045 ? Math.pow((_r + 0.055) / 1.055, 2.4) : _r / 12.92;
+            _g = _g > 0.04045 ? Math.pow((_g + 0.055) / 1.055, 2.4) : _g / 12.92;
+            _b = _b > 0.04045 ? Math.pow((_b + 0.055) / 1.055, 2.4) : _b / 12.92;
+
+            _r *= 100;
+            _g *= 100;
+            _b *= 100;
+
+            let x = _r * 0.4124564 + _g * 0.3575761 + _b * 0.1804375;
+            let y = _r * 0.2126729 + _g * 0.7151522 + _b * 0.0721750;
+            let z = _r * 0.0193339 + _g * 0.1191920 + _b * 0.9503041;
+            return [x, y, z];
+        }
+
+        function xyzToLab(x, y, z) {
+            let ref_X = 95.047;
+            let ref_Y = 100.000;
+            let ref_Z = 108.883;
+
+            x /= ref_X;
+            y /= ref_Y;
+            z /= ref_Z;
+
+            x = x > 0.008856 ? Math.pow(x, 1/3) : (7.787 * x) + (16 / 116);
+            y = y > 0.008856 ? Math.pow(y, 1/3) : (7.787 * y) + (16 / 116);
+            z = z > 0.008856 ? Math.pow(z, 1/3) : (7.787 * z) + (16 / 116);
+
+            let l = (116 * y) - 16;
+            let a = 500 * (x - y);
+            let b = 200 * (y - z);
+
+            return [l, a, b];
+        }
+
+        function rgbToLab(r, g, b) {
+            let [x, y, z] = rgbToXyz(r, g, b);
+            return xyzToLab(x, y, z);
+        }
+
+        function rgbToHsv(r, g, b) {
+            r /= 255; g /= 255; b /= 255;
+            let max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, v = max;
+            let d = max - min;
+            s = max === 0 ? 0 : d / max;
+            if (max === min) {
+                h = 0;
+            } else {
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+            return [h, s, v];
+        }
+
+        function rgbToYcbcr(r, g, b) {
+            let y = 0.299 * r + 0.587 * g + 0.114 * b;
+            let cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+            let cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+            return [y, cb, cr];
+        }
+
+        // Delay execution to allow UI to render spinner
+        setTimeout(() => {
+            for (let r = 0; r <= 255; r += step) {
+                for (let g = 0; g <= 255; g += step) {
+                    for (let b = 0; b <= 255; b += step) {
+                        const colorStr = `rgb(${r},${g},${b})`;
+                        markerColors.push(colorStr);
+
+                        // RGB
+                        rgb_x.push(r); rgb_y.push(g); rgb_z.push(b);
+
+                        // HSV
+                        const [h, s, v] = rgbToHsv(r, g, b);
+                        const angle = h * 2 * Math.PI;
+                        hsv_x.push(s * Math.cos(angle));
+                        hsv_y.push(s * Math.sin(angle));
+                        hsv_z.push(v);
+
+                        // YCbCr
+                        const [y, cb, cr] = rgbToYcbcr(r, g, b);
+                        ycbcr_x.push(cb); ycbcr_y.push(cr); ycbcr_z.push(y);
+
+                        // Lab
+                        const [l_val, a_val, b_val] = rgbToLab(r, g, b);
+                        lab_x.push(a_val); lab_y.push(b_val); lab_z.push(l_val);
+
+
+                        hoverTexts.push(`R: ${r}, G: ${g}, B: ${b}`);
+                    }
+                }
+            }
+
+            const commonMarker = {
+                size: 5,
+                color: markerColors,
+                opacity: 0.8,
+                line: { width: 0 }
+            };
+
+            const sceneLayout = {
+                xaxis: { backgroundcolor: "rgba(30, 41, 59, 0.4)", gridcolor: "rgba(255, 255, 255, 0.1)", showbackground: true, zerolinecolor: "rgba(255,255,255,0.2)" },
+                yaxis: { backgroundcolor: "rgba(30, 41, 59, 0.4)", gridcolor: "rgba(255, 255, 255, 0.1)", showbackground: true, zerolinecolor: "rgba(255,255,255,0.2)" },
+                zaxis: { backgroundcolor: "rgba(30, 41, 59, 0.4)", gridcolor: "rgba(255, 255, 255, 0.1)", showbackground: true, zerolinecolor: "rgba(255,255,255,0.2)" },
+                camera: { eye: { x: 1.5, y: 1.5, z: 1.2 } },
+                aspectmode: "cube"
+            };
+
+            const layoutBase = {
+                margin: { l: 0, r: 0, b: 0, t: 0 },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: { color: '#94a3b8' },
+                hovermode: 'closest'
+            };
+
+            // RGB Config
+            let layoutRgb = JSON.parse(JSON.stringify(layoutBase));
+            layoutRgb.scene = JSON.parse(JSON.stringify(sceneLayout));
+            layoutRgb.scene.xaxis.title = 'Red'; layoutRgb.scene.xaxis.range = [0, 255];
+            layoutRgb.scene.yaxis.title = 'Green'; layoutRgb.scene.yaxis.range = [0, 255];
+            layoutRgb.scene.zaxis.title = 'Blue'; layoutRgb.scene.zaxis.range = [0, 255];
+
+            // HSV Config
+            let layoutHsv = JSON.parse(JSON.stringify(layoutBase));
+            layoutHsv.scene = JSON.parse(JSON.stringify(sceneLayout));
+            layoutHsv.scene.xaxis.title = 'S * cos(H)'; layoutHsv.scene.xaxis.range = [-1, 1];
+            layoutHsv.scene.yaxis.title = 'S * sin(H)'; layoutHsv.scene.yaxis.range = [-1, 1];
+            layoutHsv.scene.zaxis.title = 'Value (V)'; layoutHsv.scene.zaxis.range = [0, 1];
+
+            // YCbCr Config
+            let layoutYcbcr = JSON.parse(JSON.stringify(layoutBase));
+            layoutYcbcr.scene = JSON.parse(JSON.stringify(sceneLayout));
+            layoutYcbcr.scene.xaxis.title = 'Cb (Blue Diff)'; layoutYcbcr.scene.xaxis.range = [0, 255];
+            layoutYcbcr.scene.yaxis.title = 'Cr (Red Diff)'; layoutYcbcr.scene.yaxis.range = [0, 255];
+            layoutYcbcr.scene.zaxis.title = 'Luma (Y)'; layoutYcbcr.scene.zaxis.range = [0, 255];
+
+            const traceRgb = { x: rgb_x, y: rgb_y, z: rgb_z, mode: 'markers', marker: commonMarker, type: 'scatter3d', hoverinfo: 'text', text: hoverTexts };
+            const traceHsv = { x: hsv_x, y: hsv_y, z: hsv_z, mode: 'markers', marker: commonMarker, type: 'scatter3d', hoverinfo: 'text', text: hoverTexts };
+            const traceYcbcr = { x: ycbcr_x, y: ycbcr_y, z: ycbcr_z, mode: 'markers', marker: commonMarker, type: 'scatter3d', hoverinfo: 'text', text: hoverTexts };
+
+            // Lab Config
+            let layoutLab = JSON.parse(JSON.stringify(layoutBase));
+            layoutLab.scene = JSON.parse(JSON.stringify(sceneLayout));
+            layoutLab.scene.xaxis.title = 'a* (Green-Red)'; layoutLab.scene.xaxis.range = [-128, 128];
+            layoutLab.scene.yaxis.title = 'b* (Blue-Yellow)'; layoutLab.scene.yaxis.range = [-128, 128];
+            layoutLab.scene.zaxis.title = 'L* (Lightness)'; layoutLab.scene.zaxis.range = [0, 100];
+
+            const traceLab = { x: lab_x, y: lab_y, z: lab_z, mode: 'markers', marker: commonMarker, type: 'scatter3d', hoverinfo: 'text', text: hoverTexts };
+
+
+            const config = { responsive: true, displayModeBar: false };
+
+            Plotly.newPlot('rgb-plot', [traceRgb], layoutRgb, config);
+            Plotly.newPlot('hsv-plot', [traceHsv], layoutHsv, config);
+            Plotly.newPlot('ycbcr-plot', [traceYcbcr], layoutYcbcr, config);
+            Plotly.newPlot('lab-plot', [traceLab], layoutLab, config);
+
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('plots-container').style.display = 'flex';
+
+            // --- 3. 3D Plotly Grayscale Interactive Logic ---
+            const btnReset = document.getElementById('btn-reset');
+            const btnMethodA = document.getElementById('btn-method-a');
+            const btnMethodB = document.getElementById('btn-method-b');
+
+            function updatePlotColors(colorArray, activeBtn) {
+                // Update button styles
+                [btnReset, btnMethodA, btnMethodB].forEach(btn => btn.classList.remove('active'));
+                activeBtn.classList.add('active');
+
+                // Restyle only the rgb-plot marker colors
+                Plotly.restyle('rgb-plot', { 'marker.color': [colorArray] });
+            }
+
+            btnReset.addEventListener('click', () => {
+                updatePlotColors(markerColors, btnReset);
+            });
+
+            btnMethodA.addEventListener('click', () => {
+                let grayColorsA = [];
+                for (let i = 0; i < rgb_x.length; i++) {
+                    let r = rgb_x[i], g = rgb_y[i], b = rgb_z[i];
+                    let gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+                    grayColorsA.push(`rgb(${gray},${gray},${gray})`);
+                }
+                updatePlotColors(grayColorsA, btnMethodA);
+            });
+
+            btnMethodB.addEventListener('click', () => {
+                let grayColorsB = [];
+                for (let i = 0; i < rgb_x.length; i++) {
+                    let r = rgb_x[i], g = rgb_y[i], b = rgb_z[i];
+                    let gray = Math.round((r + g + b) / 3);
+                    grayColorsB.push(`rgb(${gray},${gray},${gray})`);
+                }
+                updatePlotColors(grayColorsB, btnMethodB);
+            });
+
+            // --- 4. Lighting Robustness Experiment (jean7.png) ---
+            const jeanImg = document.getElementById('jean-source');
+            const jOrigCanvas = document.getElementById('jean-orig-canvas');
+            const jRgbCanvas = document.getElementById('jean-rgb-canvas');
+            const jHsvCanvas = document.getElementById('jean-hsv-canvas');
+            const jOrigCtx = jOrigCanvas.getContext('2d');
+            const jRgbCtx = jRgbCanvas.getContext('2d');
+            const jHsvCtx = jHsvCanvas.getContext('2d');
+            const lightSlider = document.getElementById('light-slider');
+            const kValueText = document.getElementById('k-value');
+
+            let origPixels = []; // Array of {r, g, b, h, s, v}
+            let samplePixels = []; // Smaller subset for 3D plotting
+
+            function hsvToRgb(h, s, v) {
+                let r, g, b, i, f, p, q, t;
+                if (s === 0) {
+                    r = g = b = v;
+                    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+                }
+                h *= 6;
+                i = Math.floor(h);
+                f = h - i;
+                p = v * (1 - s);
+                q = v * (1 - s * f);
+                t = v * (1 - s * (1 - f));
+                switch (i % 6) {
+                    case 0: r = v, g = t, b = p; break;
+                    case 1: r = q, g = v, b = p; break;
+                    case 2: r = p, g = v, b = t; break;
+                    case 3: r = p, g = q, b = v; break;
+                    case 4: r = t, g = p, b = v; break;
+                    case 5: r = v, g = p, b = q; break;
+                }
+                return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+            }
+
+            jeanImg.onload = () => {
+                const w = jeanImg.width;
+                const h = jeanImg.height;
+
+                // Setup canvases
+                [jOrigCanvas, jRgbCanvas, jHsvCanvas].forEach(c => {
+                    c.width = w;
+                    c.height = h;
+                });
+
+                jOrigCtx.drawImage(jeanImg, 0, 0);
+
+                let imgData;
+                try {
+                    imgData = jOrigCtx.getImageData(0, 0, w, h);
+                } catch (e) {
+                    console.error("CORS / Tainted Canvas Error:", e);
+                    document.getElementById('jean-error-msg').style.display = 'block';
+                    return; // Stop execution
+                }
+
+                const data = imgData.data;
+
+                // Extract all pixels
+                for (let i = 0; i < data.length; i += 4) {
+                    let r = data[i], g = data[i + 1], b = data[i + 2];
+                    let [hv, sv, vv] = rgbToHsv(r, g, b);
+                    origPixels.push({ r, g, b, h: hv, s: sv, v: vv, alpha: data[i + 3] });
+                }
+
+                // Sample ~500 pixels for 3D plot to keep animation smooth
+                let skip = Math.max(1, Math.floor(origPixels.length / 800));
+                for (let i = 0; i < origPixels.length; i += skip) {
+                    if (origPixels[i].alpha > 0) {
+                        samplePixels.push(origPixels[i]);
+                    }
+                }
+
+                // Initial render of 3D plots
+                renderJean3D(1.0);
+            };
+
+            // Force load the image if already cached
+            if (jeanImg.complete && jeanImg.naturalHeight !== 0) {
+                jeanImg.onload();
+            }
+
+            function renderJean3D(k) {
+                if (samplePixels.length === 0) return;
+
+                let r_x = [], r_y = [], r_z = [], r_c = [];
+                let h_x = [], h_y = [], h_z = [], h_c = [];
+
+                // Calculate scaled values for the 3D Plot samples
+                for (let p of samplePixels) {
+                    // RGB scaled
+                    let sr = Math.min(255, p.r * k);
+                    let sg = Math.min(255, p.g * k);
+                    let sb = Math.min(255, p.b * k);
+                    r_x.push(sr); r_y.push(sg); r_z.push(sb);
+                    r_c.push(`rgb(${sr},${sg},${sb})`);
+
+                    // HSV scaled
+                    let svv = Math.min(1.0, p.v * k);
+                    let svRgb = hsvToRgb(p.h, p.s, svv);
+                    let angle = p.h * 2 * Math.PI;
+                    h_x.push(p.s * Math.cos(angle));
+                    h_y.push(p.s * Math.sin(angle));
+                    h_z.push(svv);
+                    h_c.push(`rgb(${svRgb[0]},${svRgb[1]},${svRgb[2]})`);
+                }
+
+                // Update Plotly Data
+                Plotly.react('jean-rgb-3d', [{
+                    x: r_x, y: r_y, z: r_z, mode: 'markers',
+                    marker: { size: 4, color: r_c, opacity: 0.9 }, type: 'scatter3d'
+                }], {
+                    margin: { l: 0, r: 0, b: 0, t: 0 }, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                    scene: {
+                        xaxis: { title: 'R', range: [0, 255], backgroundcolor: "rgba(30,41,59,0.3)" },
+                        yaxis: { title: 'G', range: [0, 255], backgroundcolor: "rgba(30,41,59,0.3)" },
+                        zaxis: { title: 'B', range: [0, 255], backgroundcolor: "rgba(30,41,59,0.3)" },
+                        camera: { eye: { x: 1.5, y: 1.5, z: 1.2 } }
+                    }
+                }, { responsive: true, displayModeBar: false });
+
+                Plotly.react('jean-hsv-3d', [{
+                    x: h_x, y: h_y, z: h_z, mode: 'markers',
+                    marker: { size: 4, color: h_c, opacity: 0.9 }, type: 'scatter3d'
+                }], {
+                    margin: { l: 0, r: 0, b: 0, t: 0 }, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                    scene: {
+                        xaxis: { title: 'S*cos(H)', range: [-1, 1], backgroundcolor: "rgba(30,41,59,0.3)" },
+                        yaxis: { title: 'S*sin(H)', range: [-1, 1], backgroundcolor: "rgba(30,41,59,0.3)" },
+                        zaxis: { title: 'V', range: [0, 1], backgroundcolor: "rgba(30,41,59,0.3)" },
+                        camera: { eye: { x: 1.5, y: 1.5, z: 1.2 } }
+                    }
+                }, { responsive: true, displayModeBar: false });
+            }
+
+            // Slider Interactivity
+            lightSlider.addEventListener('input', (e) => {
+                const k = parseFloat(e.target.value);
+                kValueText.textContent = k.toFixed(2);
+
+                // 1. Update 2D Canvases
+                const w = jOrigCanvas.width, h = jOrigCanvas.height;
+                if (w === 0 || h === 0) return;
+
+                const rgbImgData = jRgbCtx.createImageData(w, h);
+                const hsvImgData = jHsvCtx.createImageData(w, h);
+
+                for (let i = 0; i < origPixels.length; i++) {
+                    let p = origPixels[i];
+                    let idx = i * 4;
+
+                    // RGB scaling
+                    rgbImgData.data[idx] = Math.min(255, p.r * k);
+                    rgbImgData.data[idx + 1] = Math.min(255, p.g * k);
+                    rgbImgData.data[idx + 2] = Math.min(255, p.b * k);
+                    rgbImgData.data[idx + 3] = p.alpha;
+
+                    // HSV scaling
+                    let newV = Math.min(1.0, p.v * k);
+                    let [r, g, b] = hsvToRgb(p.h, p.s, newV);
+                    hsvImgData.data[idx] = r;
+                    hsvImgData.data[idx + 1] = g;
+                    hsvImgData.data[idx + 2] = b;
+                    hsvImgData.data[idx + 3] = p.alpha;
+                }
+
+                jRgbCtx.putImageData(rgbImgData, 0, 0);
+                jHsvCtx.putImageData(hsvImgData, 0, 0);
+
+                // 2. Update 3D Plots (using Plotly.react for performance)
+                renderJean3D(k);
+            });
+
+        }, 500);
+    </script>
+</body>
+
+</html>

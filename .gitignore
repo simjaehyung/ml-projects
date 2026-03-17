@@ -1,0 +1,85 @@
+# ===========================================
+# Python
+# ===========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ===========================================
+# Virtual environments
+# ===========================================
+venv/
+.venv/
+env/
+.env
+.env.local
+
+# ===========================================
+# IDE / Editor
+# ===========================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ===========================================
+# OS
+# ===========================================
+.DS_Store
+Thumbs.db
+
+# ===========================================
+# ML / Data (대용량 파일 - GitHub 100MB 제한)
+# ===========================================
+*.npy
+*.npz
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+*.joblib
+
+# web_ui_dashboard - 사용자 업로드 이미지 & 증강 결과 (앱 실행 시 자동 생성)
+web_ui_dashboard/project_data/images/
+web_ui_dashboard/project_data/labels/
+web_ui_dashboard/project_data/logs/
+web_ui_dashboard/share/project_data/images/
+web_ui_dashboard/share/project_data/labels/
+web_ui_dashboard/share/project_data/logs/
+
+# 백업/압축 파일
+*.zip
+
+# image_processing - 생성된 이미지 도메인 데이터셋
+image_processing/data/raw/image_domain_dataset/
+
+# ===========================================
+# Jupyter
+# ===========================================
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# ===========================================
+# 기타
+# ===========================================
+*.log
+*.tmp
+.cache/

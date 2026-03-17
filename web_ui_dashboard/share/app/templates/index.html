@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1조 Object Detection 라벨링 & 증강 시스템</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ═══════════════════════════════════════════
+           CSS: 디자인 시스템
+        ═══════════════════════════════════════════ */
+        :root {
+            --bg-primary:   #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card:      #1e293b;
+            --border:       #334155;
+            --text-primary: #f8fafc;
+            --text-secondary:#94a3b8;
+            --accent-blue:  #3b82f6;
+            --accent-green: #22c55e;
+            --accent-orange:#f97316;
+            --accent-red:   #ef4444;
+            --accent-purple:#a855f7;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* ── 헤더 ── */
+        .header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .header h1 {
+            font-size: 1.3rem;
+            background: linear-gradient(90deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header .badge {
+            background: var(--accent-blue);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* ── 메인 레이아웃 ── */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 0;
+            height: calc(100vh - 60px);
+        }
+
+        /* ── 캔버스 영역 ── */
+        .canvas-area {
+            display: flex;
+            flex-direction: column;
+            background: #0a0f1a;
+            position: relative;
+            overflow: hidden;
+        }
+        .canvas-toolbar {
+            display: flex;
+            gap: 8px;
+            padding: 10px 16px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .canvas-toolbar button {
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .canvas-toolbar button:hover {
+            border-color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.1);
+        }
+        .canvas-toolbar button.danger { border-color: var(--accent-red); color: var(--accent-red); }
+        .canvas-toolbar button.danger:hover { background: rgba(239, 68, 68, 0.15); }
+        .canvas-toolbar .sep {
+            width: 1px; height: 24px; background: var(--border);
+        }
+        .canvas-toolbar .info {
+            margin-left: auto;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        #drawingCanvas {
+            cursor: crosshair;
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .no-image-msg {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            text-align: center;
+        }
+        .no-image-msg span {
+            display: block;
+            font-size: 3rem;
+            margin-bottom: 12px;
+        }
+
+        /* ── 사이드 패널 ── */
+        .side-panel {
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .panel-section {
+            border-bottom: 1px solid var(--border);
+            padding: 16px;
+        }
+        .panel-section h3 {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        /* ── 라벨 입력 ── */
+        .label-input-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .label-input-row input {
+            flex: 1;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            outline: none;
+        }
+        .label-input-row input:focus { border-color: var(--accent-blue); }
+
+        /* ── 박스 목록 ── */
+        .box-list { list-style: none; }
+        .box-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            margin-bottom: 6px;
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+        .box-item:hover { background: rgba(59, 130, 246, 0.15); }
+        .box-item .color-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .box-item .coords {
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            font-family: 'Fira Code', monospace;
+        }
+        .box-item button {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: var(--accent-red);
+            cursor: pointer;
+            font-size: 1rem;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        .box-item button:hover { opacity: 1; }
+
+        /* ── 증강 설정 ── */
+        .aug-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .aug-option input[type=checkbox] {
+            accent-color: var(--accent-blue);
+            width: 16px; height: 16px;
+        }
+        .aug-option label {
+            font-size: 0.82rem;
+            color: var(--text-primary);
+        }
+        .aug-option .tag {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .tag-default { background: rgba(34,197,94,0.15); color: var(--accent-green); }
+        .tag-optional { background: rgba(249,115,22,0.15); color: var(--accent-orange); }
+        .tag-new { background: rgba(139,92,246,0.2); color: #a78bfa; }
+
+        /* ── Mosaic 이미지 선택 패널 ── */
+        .mosaic-picker {
+            margin-top: 8px;
+            padding: 10px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .mosaic-picker-title {
+            font-size: 11px; color: #94a3b8; margin-bottom: 8px;
+        }
+        .mosaic-picker-title span { color: #a3e635; font-weight:600; }
+        .mosaic-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .mosaic-thumb {
+            position: relative;
+            cursor: pointer;
+            border-radius: 5px;
+            overflow: hidden;
+            border: 2px solid transparent;
+            transition: border-color 0.15s;
+            aspect-ratio: 1;
+        }
+        .mosaic-thumb img {
+            width: 100%; height: 100%;
+            object-fit: cover; display: block;
+        }
+        .mosaic-thumb.selected {
+            border-color: #a3e635;
+        }
+        .mosaic-thumb .check-badge {
+            display: none;
+            position: absolute; top: 3px; right: 3px;
+            background: #a3e635; color: #000;
+            border-radius: 50%; width: 16px; height: 16px;
+            font-size: 10px; line-height: 16px; text-align: center;
+            font-weight: bold;
+        }
+        .mosaic-thumb.selected .check-badge { display: block; }
+        .mosaic-empty {
+            font-size: 11px; color: #64748b; text-align: center;
+            padding: 12px 0;
+        }
+        .mosaic-counter {
+            font-size: 11px; color: #94a3b8; margin-top: 6px; text-align: right;
+        }
+        .mosaic-counter .cnt { color: #a3e635; font-weight: 600; }
+
+        /* ── v2.0: 모드 전환 ── */
+        .mode-selector { display: flex; gap: 8px; margin-bottom: 10px; }
+        .mode-btn {
+            flex: 1; padding: 8px 4px;
+            border: 1px solid var(--border); border-radius: 8px;
+            background: var(--bg-primary); color: var(--text-secondary);
+            cursor: pointer; font-size: 0.78rem; transition: all 0.2s; text-align: center;
+        }
+        .mode-btn.active {
+            border-color: var(--accent-blue); color: var(--accent-blue);
+            background: rgba(59,130,246,0.12); font-weight: 600;
+        }
+        .mode-hint {
+            font-size: 0.72rem; color: var(--text-secondary);
+            padding: 6px 10px; background: rgba(255,255,255,0.04);
+            border-radius: 6px; border-left: 3px solid var(--accent-blue);
+            line-height: 1.5;
+        }
+        /* 첫 점 닫기 가이드 원 */
+        .polygon-close-hint { color: #22c55e; font-weight: 600; }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+            margin-bottom: 10px;
+        }
+        .slider-row label { font-size: 0.75rem; color: var(--text-secondary); min-width: 85px; }
+        .slider-row input[type=range] { flex: 1; accent-color: var(--accent-blue); }
+        .slider-row .val { font-size: 0.75rem; color: var(--accent-blue); min-width: 28px; text-align: right; font-family: monospace; }
+
+        /* ── 저장 버튼 ── */
+        .save-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            letter-spacing: 0.02em;
+        }
+        .save-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59,130,246,0.3); }
+        .save-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* ── 토스트 ── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            z-index: 1000;
+            transition: transform 0.4s cubic-bezier(.4,0,.2,1);
+            color: white;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.success { background: var(--accent-green); }
+        .toast.error { background: var(--accent-red); }
+        .toast.info { background: var(--accent-blue); }
+    </style>
+</head>
+<body>
+
+    <!-- ═══ HEADER ═══ -->
+    <div class="header">
+        <h1>🏭 1조 Object Detection 라벨링 & 증강</h1>
+        <span class="badge">v1.0 — Web Demo</span>
+    </div>
+
+    <!-- ═══ MAIN ═══ -->
+    <div class="main-layout">
+
+        <!-- ── 캔버스 영역 ── -->
+        <div class="canvas-area">
+            <div class="canvas-toolbar">
+                <button onclick="document.getElementById('fileInput').click()">📁 이미지 열기</button>
+                <input type="file" id="fileInput" accept="image/*" style="display:none">
+                <div class="sep"></div>
+                <button onclick="undoLastBox()">↩ Undo (Ctrl+Z)</button>
+                <button class="danger" onclick="clearAllBoxes()">🗑 전체 삭제</button>
+                <div class="info" id="coordInfo">좌표: —</div>
+            </div>
+            <div class="canvas-container" id="canvasContainer">
+                <div class="no-image-msg" id="noImageMsg">
+                    <span>📷</span>
+                    이미지를 열어주세요
+                </div>
+                <canvas id="drawingCanvas" style="display:none;"></canvas>
+            </div>
+        </div>
+
+        <!-- ── 사이드 패널 ── -->
+        <div class="side-panel">
+
+            <!-- v2.0: 라벨링 모드 전환 -->
+            <div class="panel-section">
+                <h3>🎨 라벨링 모드</h3>
+                <div class="mode-selector">
+                    <button class="mode-btn active" id="btnBoxMode" onclick="setLabelMode('bbox')">📦 Box</button>
+                    <button class="mode-btn" id="btnPolyMode" onclick="setLabelMode('polygon')">🔷 Polygon</button>
+                </div>
+                <div class="mode-hint" id="modeHint">드래그로 바운딩 박스 그리기</div>
+            </div>
+
+            <!-- 라벨 입력 -->
+            <div class="panel-section">
+                <h3>📌 라벨 설정</h3>
+                <div class="label-input-row">
+                    <input type="text" id="currentLabel" placeholder="라벨명 입력 (예: defect)" value="object">
+                </div>
+                <div class="aug-option">
+                    <input type="checkbox" id="labelSensitive">
+                    <label for="labelSensitive">방향 민감 라벨 (6↔9, 화살표 등)</label>
+                </div>
+            </div>
+
+            <!-- 박스 목록 -->
+            <div class="panel-section" style="flex:1; overflow-y:auto;">
+                <h3>📦 라벨 목록 (<span id="boxCount">0</span>)</h3>
+                <ul class="box-list" id="boxList">
+                    <li style="color:var(--text-secondary); font-size:0.8rem;">아직 박스가 없습니다</li>
+                </ul>
+            </div>
+
+            <!-- 증강 설정 -->
+            <div class="panel-section">
+                <h3>⚙️ 데이터 증강 설정</h3>
+
+                <!-- ── 기존 기법 ── -->
+                <p style="font-size:11px;color:#94a3b8;margin:0 0 6px 0;font-weight:600;letter-spacing:.05em;">기존 기법</p>
+                <div class="aug-option">
+                    <input type="checkbox" id="augHomography" checked>
+                    <label for="augHomography">호모그래피 (Viewpoint)</label>
+                    <span class="tag tag-default">기본</span>
+                </div>
+                <div class="aug-option">
+                    <input type="checkbox" id="augNoise" checked>
+                    <label for="augNoise">Poisson Noise</label>
+                    <span class="tag tag-default">기본</span>
+                </div>
+                <div class="aug-option">
+                    <input type="checkbox" id="augSpecular">
+                    <label for="augSpecular">빛 반사 (Specular)</label>
+                    <span class="tag tag-optional">선택</span>
+                </div>
+                <div class="aug-option">
+                    <input type="checkbox" id="augShadow">
+                    <label for="augShadow">그림자 (Shadow)</label>
+                    <span class="tag tag-optional">선택</span>
+                </div>
+
+                <!-- ── v1.1 신규 기법 ── -->
+                <p style="font-size:11px;color:#94a3b8;margin:10px 0 6px 0;font-weight:600;letter-spacing:.05em;">v1.1 신규 기법</p>
+
+                <!-- Gamma Correction -->
+                <div class="aug-option">
+                    <input type="checkbox" id="augGamma">
+                    <label for="augGamma">감마 보정 (Gamma)</label>
+                    <span class="tag tag-new">신규</span>
+                </div>
+                <div class="slider-row" id="gammaControls" style="display:none;">
+                    <label>γ 최솟값</label>
+                    <input type="range" id="gammaMin" min="20" max="100" value="60" step="5">
+                    <span class="val" id="gammaMinVal">0.60</span>
+                </div>
+                <div class="slider-row" id="gammaControls2" style="display:none;">
+                    <label>γ 최댓값</label>
+                    <input type="range" id="gammaMax" min="100" max="250" value="160" step="5">
+                    <span class="val" id="gammaMaxVal">1.60</span>
+                </div>
+
+                <!-- CLAHE -->
+                <div class="aug-option">
+                    <input type="checkbox" id="augClahe">
+                    <label for="augClahe">CLAHE (히스토그램)</label>
+                    <span class="tag tag-new">신규</span>
+                </div>
+                <div class="slider-row" id="claheControls" style="display:none;">
+                    <label>Clip Limit</label>
+                    <input type="range" id="claheClip" min="10" max="50" value="20" step="5">
+                    <span class="val" id="claheClipVal">2.0</span>
+                </div>
+
+                <!-- Cutout -->
+                <div class="aug-option">
+                    <input type="checkbox" id="augCutout">
+                    <label for="augCutout">Cutout (Random Erasing)</label>
+                    <span class="tag tag-new">신규</span>
+                </div>
+                <div class="slider-row" id="cutoutControls" style="display:none;">
+                    <label>최대 면적</label>
+                    <input type="range" id="cutoutMax" min="2" max="15" value="8" step="1">
+                    <span class="val" id="cutoutMaxVal">8%</span>
+                </div>
+
+                <!-- Mosaic -->
+                <div class="aug-option">
+                    <input type="checkbox" id="augMosaic">
+                    <label for="augMosaic">Mosaic (4-이미지 합성)</label>
+                    <span class="tag tag-new">신규</span>
+                </div>
+                <div id="mosaicHint" style="display:none;">
+                    <!-- 이미지 선택 패널 -->
+                    <div class="mosaic-picker">
+                        <div class="mosaic-picker-title">
+                            합성에 사용할 이미지를 선택하세요 (최대 3장)<br>
+                            <span>미선택 시 자기 자신을 복제해서 사용합니다</span>
+                        </div>
+                        <div class="mosaic-grid" id="mosaicGrid">
+                            <div class="mosaic-empty">업로드된 이미지가 없습니다</div>
+                        </div>
+                        <div class="mosaic-counter">
+                            선택됨: <span class="cnt" id="mosaicSelectedCount">0</span> / 3
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Copy-Paste (v2.0 신규) -->
+                <div class="aug-option" style="margin-top:6px;">
+                    <input type="checkbox" id="augCopyPaste">
+                    <label for="augCopyPaste">Copy-Paste (누끼 합성)</label>
+                    <span class="tag tag-new">v2.0</span>
+                </div>
+                <div class="aug-hint" id="copyPasteHint" style="display:none;">
+                    <span style="font-size:11px;color:#a78bfa;">
+                        🔷 Polygon 라벨이 있을 때만 작동합니다
+                    </span>
+                </div>
+
+                <div class="slider-row" style="margin-top:10px;">
+                    <label>생성 개수</label>
+                    <input type="range" id="numAugmented" min="1" max="20" value="5">
+                    <span class="val" id="numAugVal">5</span>
+                </div>
+            </div>
+
+            <!-- 저장 -->
+            <div class="panel-section">
+                <button class="save-btn" id="saveBtn" onclick="saveAll()" disabled>
+                    💾 저장 및 증강 실행
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 토스트 -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+    /* ═══════════════════════════════════════════
+       JavaScript: 상태 관리 + Canvas 드로잉
+    ═══════════════════════════════════════════ */
+
+    // ── 상태 ──
+    const state = {
+        filename: null,          // 업로드된 파일명
+        currentFilename: null,   // 현재 편집 중인 파일명 (Mosaic 선택 패널에서 자기 자신 구분용)
+        imageLoaded: false,      // 이미지 로드 여부
+        naturalWidth: 0,         // 원본 이미지 너비
+        naturalHeight: 0,        // 원본 이미지 높이
+        boxes: [],               // 확정된 라벨 목록 (bbox/polygon 혼합)
+        currentBox: null,        // 드래그 중인 박스 (bbox 모드용)
+        isDrawing: false,        // 마우스 드래그 중 여부
+        startX: 0,               // 드래그 시작 X (캔버스 좌표)
+        startY: 0,               // 드래그 시작 Y (캔버스 좌표)
+        undoStack: [],           // Undo 히스토리 (boxes 스냅샷 배열)
+        // ── v2.0 Polygon 모드 ──
+        labelMode: 'bbox',           // 'bbox' | 'polygon'
+        currentPolygon: [],          // 진행 중인 다각형 점 [{x,y}, ...] (캔버스 좌표)
+        polygonMousePos: {x:0, y:0}, // 마우스 현재 위치 (실시간 미리보기용)
+    };
+
+    // 색상 팔레트
+    const COLORS = [
+        '#3b82f6', '#ef4444', '#22c55e', '#f97316', '#a855f7',
+        '#06b6d4', '#eab308', '#ec4899', '#14b8a6', '#f43f5e'
+    ];
+
+    // DOM
+    const canvas = document.getElementById('drawingCanvas');
+    const ctx = canvas.getContext('2d');
+    const canvasContainer = document.getElementById('canvasContainer');
+    const fileInput = document.getElementById('fileInput');
+    const coordInfo = document.getElementById('coordInfo');
+    const boxList = document.getElementById('boxList');
+    const boxCount = document.getElementById('boxCount');
+    const saveBtn = document.getElementById('saveBtn');
+    const numAugSlider = document.getElementById('numAugmented');
+    const numAugVal = document.getElementById('numAugVal');
+
+    let loadedImage = null;
+
+    // ── 슬라이더 ──
+    numAugSlider.addEventListener('input', () => {
+        numAugVal.textContent = numAugSlider.value;
+    });
+
+    // ── v1.1 신규 슬라이더 및 체크박스 토글 ──
+
+    // Gamma: 슬라이더 내부값이 정수(×100)이므로 / 100 으로 표시
+    document.getElementById('gammaMin').addEventListener('input', function() {
+        document.getElementById('gammaMinVal').textContent = (this.value / 100).toFixed(2);
+    });
+    document.getElementById('gammaMax').addEventListener('input', function() {
+        document.getElementById('gammaMaxVal').textContent = (this.value / 100).toFixed(2);
+    });
+
+    // CLAHE clip limit: 슬라이더 내부값 / 10
+    document.getElementById('claheClip').addEventListener('input', function() {
+        document.getElementById('claheClipVal').textContent = (this.value / 10).toFixed(1);
+    });
+
+    // Cutout 면적: 값 뒤에 % 표시
+    document.getElementById('cutoutMax').addEventListener('input', function() {
+        document.getElementById('cutoutMaxVal').textContent = this.value + '%';
+    });
+
+    // 체크박스 → 하위 컨트롤 토글
+    document.getElementById('augGamma').addEventListener('change', function() {
+        const show = this.checked ? 'flex' : 'none';
+        document.getElementById('gammaControls').style.display  = show;
+        document.getElementById('gammaControls2').style.display = show;
+    });
+    document.getElementById('augClahe').addEventListener('change', function() {
+        document.getElementById('claheControls').style.display = this.checked ? 'flex' : 'none';
+    });
+    document.getElementById('augCutout').addEventListener('change', function() {
+        document.getElementById('cutoutControls').style.display = this.checked ? 'flex' : 'none';
+    });
+    // ── Mosaic 이미지 선택 패널 ──
+    let mosaicSelectedImages = [];  // 선택된 파일명 배열
+
+    async function loadMosaicImageList() {
+        const grid = document.getElementById('mosaicGrid');
+        grid.innerHTML = '<div class="mosaic-empty">불러오는 중...</div>';
+        try {
+            const res = await fetch('/api/images/list');
+            const data = await res.json();
+            const images = data.images || [];
+
+            if (images.length === 0) {
+                grid.innerHTML = '<div class="mosaic-empty">업로드된 이미지가 없습니다<br><small>이미지를 먼저 업로드해 주세요</small></div>';
+                return;
+            }
+
+            grid.innerHTML = '';
+            images.forEach(img => {
+                const thumb = document.createElement('div');
+                thumb.className = 'mosaic-thumb';
+                thumb.dataset.filename = img.filename;
+                thumb.innerHTML = `
+                    <img src="${img.url}" alt="${img.filename}" title="${img.filename}">
+                    <div class="check-badge">✓</div>
+                `;
+                // 현재 편집 중인 이미지는 흐리게 표시 (이미 주 이미지로 쓰임)
+                if (state.currentFilename && img.filename === state.currentFilename) {
+                    thumb.style.opacity = '0.4';
+                    thumb.title = '현재 편집 중인 이미지 (자동 포함)';
+                }
+                thumb.addEventListener('click', () => {
+                    // 현재 편집 중인 이미지는 선택 불가
+                    if (state.currentFilename && img.filename === state.currentFilename) return;
+
+                    if (thumb.classList.contains('selected')) {
+                        thumb.classList.remove('selected');
+                        mosaicSelectedImages = mosaicSelectedImages.filter(f => f !== img.filename);
+                    } else {
+                        if (mosaicSelectedImages.length >= 3) {
+                            alert('최대 3장까지 선택할 수 있습니다.');
+                            return;
+                        }
+                        thumb.classList.add('selected');
+                        mosaicSelectedImages.push(img.filename);
+                    }
+                    document.getElementById('mosaicSelectedCount').textContent = mosaicSelectedImages.length;
+                });
+                grid.appendChild(thumb);
+            });
+        } catch (e) {
+            grid.innerHTML = '<div class="mosaic-empty">목록 로드 실패</div>';
+        }
+    }
+
+    document.getElementById('augMosaic').addEventListener('change', function() {
+        const panel = document.getElementById('mosaicHint');
+        if (this.checked) {
+            panel.style.display = 'block';
+            mosaicSelectedImages = [];  // 체크할 때마다 선택 초기화
+            document.getElementById('mosaicSelectedCount').textContent = '0';
+            loadMosaicImageList();
+        } else {
+            panel.style.display = 'none';
+            mosaicSelectedImages = [];
+        }
+    });
+    // v2.0 Copy-Paste 힌트 토글
+    document.getElementById('augCopyPaste').addEventListener('change', function() {
+        document.getElementById('copyPasteHint').style.display = this.checked ? 'block' : 'none';
+    });
+
+    // ── 이미지 업로드 ──
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // 서버에 업로드
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/api/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+
+            if (!data.success) {
+                showToast(data.message, 'error');
+                return;
+            }
+
+            state.filename = data.filename;
+            state.currentFilename = data.filename;  // Mosaic 선택 패널에서 자기 자신 구분용
+
+            // 이미지 로드
+            const img = new Image();
+            img.onload = () => {
+                loadedImage = img;
+                state.imageLoaded = true;
+                state.naturalWidth = img.naturalWidth;
+                state.naturalHeight = img.naturalHeight;
+
+                // Canvas 크기 설정 (컨테이너에 맞춤)
+                fitCanvasToContainer();
+
+                document.getElementById('noImageMsg').style.display = 'none';
+                canvas.style.display = 'block';
+                saveBtn.disabled = false;
+
+                // 기존 박스 초기화 (v2.0: polygon 상태도 함께)
+                state.boxes = [];
+                state.undoStack = [];
+                state.currentBox = null;
+                state.currentPolygon = [];
+                updateBoxList();
+                redraw();
+
+                showToast(`이미지 로드: ${data.filename}`, 'success');
+            };
+            img.src = data.url;
+
+        } catch (err) {
+            showToast('업로드 실패: ' + err.message, 'error');
+        }
+    });
+
+    // ── Canvas 크기 맞춤 ──
+    function fitCanvasToContainer() {
+        const containerW = canvasContainer.clientWidth - 40;
+        const containerH = canvasContainer.clientHeight - 40;
+
+        const scale = Math.min(
+            containerW / state.naturalWidth,
+            containerH / state.naturalHeight,
+            1  // 1보다 크게 확대하지 않음
+        );
+
+        canvas.width = Math.floor(state.naturalWidth * scale);
+        canvas.height = Math.floor(state.naturalHeight * scale);
+    }
+
+    // ── 좌표 변환: 캔버스 ↔ 이미지(자연) 좌표 ──
+    function canvasToNatural(cx, cy) {
+        /**
+         * 핵심: 캔버스에 표시된 좌표를 실제 이미지 픽셀 좌표로 변환
+         * 이것 없으면 축소된 캔버스에 그린 박스가 원본 좌표와 어긋남
+         */
+        const scaleX = state.naturalWidth / canvas.width;
+        const scaleY = state.naturalHeight / canvas.height;
+        return {
+            x: Math.round(cx * scaleX),
+            y: Math.round(cy * scaleY)
+        };
+    }
+
+    function naturalToCanvas(nx, ny) {
+        const scaleX = canvas.width / state.naturalWidth;
+        const scaleY = canvas.height / state.naturalHeight;
+        return {
+            x: nx * scaleX,
+            y: ny * scaleY
+        };
+    }
+
+    // ══════════════════════════════════════════════════
+    // v2.0: 모드 전환 함수
+    // ══════════════════════════════════════════════════
+    function setLabelMode(mode) {
+        state.labelMode = mode;
+        state.currentPolygon = [];  // 진행 중인 다각형 초기화
+
+        document.getElementById('btnBoxMode').classList.toggle('active', mode === 'bbox');
+        document.getElementById('btnPolyMode').classList.toggle('active', mode === 'polygon');
+
+        document.getElementById('modeHint').innerHTML = mode === 'bbox'
+            ? '드래그로 바운딩 박스 그리기'
+            : '클릭: 점 추가 &nbsp;|&nbsp; <span class="polygon-close-hint">●</span> 첫 점 근처 클릭 / Enter: 완성 &nbsp;|&nbsp; Esc: 취소';
+
+        redraw();
+    }
+
+    // ── 두 점 사이 거리 (캔버스 픽셀 기준) ──
+    function distCanvas(x1, y1, x2, y2) {
+        return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    }
+
+    // ── Polygon 완성 ──
+    function finishPolygon() {
+        if (state.currentPolygon.length < 3) {
+            showToast('최소 3개의 점이 필요합니다', 'error');
+            return;
+        }
+
+        const label = document.getElementById('currentLabel').value.trim() || 'object';
+        const sensitive = document.getElementById('labelSensitive').checked;
+
+        // 캔버스 좌표 → 원본 이미지 좌표 변환
+        const naturalPoints = state.currentPolygon.map(p => {
+            const nat = canvasToNatural(p.x, p.y);
+            return [nat.x, nat.y];
+        });
+
+        state.undoStack.push(JSON.parse(JSON.stringify(state.boxes)));
+
+        state.boxes.push({
+            type: 'polygon',
+            points: naturalPoints,       // [[x1,y1], [x2,y2], ...] 원본 이미지 좌표
+            label: label,
+            label_sensitive: sensitive,
+            color: COLORS[state.boxes.length % COLORS.length],
+        });
+
+        state.currentPolygon = [];
+        updateBoxList();
+        redraw();
+        showToast(`🔷 다각형 저장 완료 (${naturalPoints.length}개 점)`, 'success');
+    }
+
+    // ══════════════════════════════════════════════════
+    // 마우스 이벤트 (bbox/polygon 모드 분기)
+    // ══════════════════════════════════════════════════
+
+    canvas.addEventListener('mousedown', (e) => {
+        if (!state.imageLoaded) return;
+        if (state.labelMode === 'polygon') return;  // polygon은 click 이벤트 사용
+
+        const rect = canvas.getBoundingClientRect();
+        state.startX = e.clientX - rect.left;
+        state.startY = e.clientY - rect.top;
+        state.isDrawing = true;
+        state.currentBox = null;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (!state.imageLoaded) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        const nat = canvasToNatural(mx, my);
+        coordInfo.textContent = `좌표: (${nat.x}, ${nat.y})`;
+
+        // v2.0: polygon 모드에서 마우스 위치로 실시간 미리보기
+        if (state.labelMode === 'polygon') {
+            state.polygonMousePos = { x: mx, y: my };
+            if (state.currentPolygon.length > 0) redraw();
+            return;
+        }
+
+        if (state.isDrawing) {
+            const x = Math.min(state.startX, mx);
+            const y = Math.min(state.startY, my);
+            const w = Math.abs(mx - state.startX);
+            const h = Math.abs(my - state.startY);
+            state.currentBox = { x, y, w, h };
+            redraw();
+        }
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+        if (!state.imageLoaded || !state.isDrawing) return;
+        if (state.labelMode === 'polygon') return;  // polygon 모드는 무시
+
+        state.isDrawing = false;
+
+        if (state.currentBox && state.currentBox.w > 5 && state.currentBox.h > 5) {
+            const nat1 = canvasToNatural(state.currentBox.x, state.currentBox.y);
+            const nat2 = canvasToNatural(
+                state.currentBox.x + state.currentBox.w,
+                state.currentBox.y + state.currentBox.h
+            );
+
+            const label = document.getElementById('currentLabel').value.trim() || 'object';
+            const sensitive = document.getElementById('labelSensitive').checked;
+
+            state.undoStack.push(JSON.parse(JSON.stringify(state.boxes)));
+
+            // v2.0: type 필드 추가
+            state.boxes.push({
+                type: 'bbox',
+                label: label,
+                x: nat1.x,
+                y: nat1.y,
+                w: nat2.x - nat1.x,
+                h: nat2.y - nat1.y,
+                color: COLORS[state.boxes.length % COLORS.length],
+                label_sensitive: sensitive
+            });
+
+            updateBoxList();
+        }
+
+        state.currentBox = null;
+        redraw();
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        if (state.isDrawing) {
+            state.isDrawing = false;
+            state.currentBox = null;
+            redraw();
+        }
+    });
+
+    // ── v2.0: Polygon 클릭 핸들러 ──
+    canvas.addEventListener('click', (e) => {
+        if (!state.imageLoaded || state.labelMode !== 'polygon') return;
+
+        const rect = canvas.getBoundingClientRect();
+        const cx = e.clientX - rect.left;
+        const cy = e.clientY - rect.top;
+
+        // 3개 이상이고 첫 점 10px 이내 → 도형 완성
+        if (state.currentPolygon.length >= 3) {
+            const first = state.currentPolygon[0];
+            if (distCanvas(cx, cy, first.x, first.y) <= 10) {
+                finishPolygon();
+                return;
+            }
+        }
+
+        // 점 추가
+        state.currentPolygon.push({ x: cx, y: cy });
+        redraw();
+    });
+
+    // ── Ctrl+Z 단축키 + v2.0 Enter/Esc ──
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            e.preventDefault();
+            undoLastBox();
+        }
+        // Enter: polygon 완성
+        if (e.key === 'Enter' && state.labelMode === 'polygon') {
+            e.preventDefault();
+            finishPolygon();
+        }
+        // Esc: polygon 그리기 취소
+        if (e.key === 'Escape' && state.labelMode === 'polygon') {
+            e.preventDefault();
+            state.currentPolygon = [];
+            redraw();
+            showToast('다각형 그리기 취소', 'info');
+        }
+    });
+
+    // ── Undo ──
+    function undoLastBox() {
+        if (state.undoStack.length === 0) {
+            showToast('되돌릴 작업이 없습니다', 'info');
+            return;
+        }
+        state.boxes = state.undoStack.pop();
+        updateBoxList();
+        redraw();
+        showToast('Undo 완료', 'info');
+    }
+
+    // ── 전체 삭제 ──
+    function clearAllBoxes() {
+        if (state.boxes.length === 0) return;
+        state.undoStack.push(JSON.parse(JSON.stringify(state.boxes)));
+        state.boxes = [];
+        updateBoxList();
+        redraw();
+        showToast('전체 박스 삭제됨', 'info');
+    }
+
+    // ── 단일 삭제 ──
+    function deleteBox(index) {
+        state.undoStack.push(JSON.parse(JSON.stringify(state.boxes)));
+        state.boxes.splice(index, 1);
+        // 색상 재할당
+        state.boxes.forEach((b, i) => b.color = COLORS[i % COLORS.length]);
+        updateBoxList();
+        redraw();
+    }
+
+    // ══════════════════════════════════════════════════
+    // v2.0: 렌더링 함수 분리 (bbox / polygon / 진행 중 polygon)
+    // ══════════════════════════════════════════════════
+
+    // 확정된 AABB 박스 렌더링
+    function drawBbox(box) {
+        const p1 = naturalToCanvas(box.x, box.y);
+        const p2 = naturalToCanvas(box.x + box.w, box.y + box.h);
+        const bw = p2.x - p1.x;
+        const bh = p2.y - p1.y;
+
+        ctx.strokeStyle = box.color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(p1.x, p1.y, bw, bh);
+
+        const fontSize = 12;
+        ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+        const tw = ctx.measureText(box.label).width + 8;
+        ctx.fillStyle = box.color;
+        ctx.fillRect(p1.x, p1.y - fontSize - 6, tw, fontSize + 6);
+        ctx.fillStyle = 'white';
+        ctx.fillText(box.label, p1.x + 4, p1.y - 4);
+    }
+
+    // 확정된 Polygon 렌더링
+    function drawPolygon(box) {
+        if (!box.points || box.points.length < 2) return;
+
+        ctx.beginPath();
+        box.points.forEach(([nx, ny], idx) => {
+            const { x, y } = naturalToCanvas(nx, ny);
+            if (idx === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+
+        // 반투명 채우기
+        ctx.fillStyle = box.color + '30';
+        ctx.fill();
+
+        // 외곽선
+        ctx.strokeStyle = box.color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // 꼭짓점 마커
+        ctx.fillStyle = box.color;
+        box.points.forEach(([nx, ny]) => {
+            const { x, y } = naturalToCanvas(nx, ny);
+            ctx.beginPath();
+            ctx.arc(x, y, 3, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // 라벨 (첫 번째 점 위)
+        const [nx0, ny0] = box.points[0];
+        const p0 = naturalToCanvas(nx0, ny0);
+        const fontSize = 12;
+        ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+        const tw = ctx.measureText(box.label).width + 8;
+        ctx.fillStyle = box.color;
+        ctx.fillRect(p0.x, p0.y - fontSize - 6, tw, fontSize + 6);
+        ctx.fillStyle = 'white';
+        ctx.fillText(box.label, p0.x + 4, p0.y - 4);
+    }
+
+    // 진행 중인 Polygon 실시간 렌더링
+    function drawCurrentPolygon() {
+        const pts = state.currentPolygon;
+        if (pts.length === 0) return;
+
+        // 그려진 선 (확정된 점들)
+        ctx.beginPath();
+        ctx.strokeStyle = '#a78bfa';
+        ctx.lineWidth = 2;
+        pts.forEach((p, i) => {
+            if (i === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+        });
+
+        // 마지막 점 → 마우스 현재 위치까지 점선 미리보기
+        ctx.setLineDash([5, 3]);
+        ctx.lineTo(state.polygonMousePos.x, state.polygonMousePos.y);
+        ctx.setLineDash([]);
+        ctx.stroke();
+
+        // 첫 점과 마우스 사이 거리 계산 (닫기 가이드)
+        const closeRadius = 10;
+        const distToFirst = pts.length >= 3
+            ? distCanvas(state.polygonMousePos.x, state.polygonMousePos.y, pts[0].x, pts[0].y)
+            : Infinity;
+
+        // 각 점 마커
+        pts.forEach((p, i) => {
+            ctx.beginPath();
+            const isFirst = i === 0;
+            const isCloseable = isFirst && pts.length >= 3;
+
+            // 첫 점: 닫기 가능 여부에 따라 색상 변화
+            if (isCloseable && distToFirst <= closeRadius) {
+                ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+                ctx.fillStyle = '#22c55e';
+            } else if (isCloseable) {
+                ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#22c55e';
+            } else {
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.fillStyle = '#a78bfa';
+            }
+
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        });
+
+        // 점 수 표시
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(`${pts.length}pts`, pts[pts.length - 1].x + 8, pts[pts.length - 1].y - 6);
+    }
+
+    // ── 통합 캔버스 다시 그리기 ──
+    function redraw() {
+        if (!loadedImage) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(loadedImage, 0, 0, canvas.width, canvas.height);
+
+        // 확정된 라벨 렌더링 (bbox/polygon 분기)
+        for (const box of state.boxes) {
+            if (box.type === 'polygon') drawPolygon(box);
+            else drawBbox(box);
+        }
+
+        // 드래그 중인 박스 (bbox 모드)
+        if (state.currentBox) {
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 3]);
+            ctx.strokeRect(state.currentBox.x, state.currentBox.y,
+                           state.currentBox.w, state.currentBox.h);
+            ctx.setLineDash([]);
+            ctx.fillStyle = 'rgba(59, 130, 246, 0.1)';
+            ctx.fillRect(state.currentBox.x, state.currentBox.y,
+                         state.currentBox.w, state.currentBox.h);
+        }
+
+        // 진행 중인 다각형 (polygon 모드)
+        drawCurrentPolygon();
+    }
+
+    // ── 라벨 목록 갱신 (v2.0: polygon 정보 표시) ──
+    function updateBoxList() {
+        boxCount.textContent = state.boxes.length;
+
+        if (state.boxes.length === 0) {
+            boxList.innerHTML = '<li style="color:var(--text-secondary); font-size:0.8rem;">아직 라벨이 없습니다</li>';
+            return;
+        }
+
+        boxList.innerHTML = state.boxes.map((b, i) => {
+            // v2.0: bbox / polygon 구분 표시
+            const coordText = (b.type === 'polygon')
+                ? `🔷 ${b.points.length}개 점`
+                : `(${b.x}, ${b.y}) ${b.w}×${b.h}`;
+
+            return `<li class="box-item">
+                <span class="color-dot" style="background:${b.color}"></span>
+                <div>
+                    <div>${b.label}${b.label_sensitive ? ' 🔒' : ''}</div>
+                    <div class="coords">${coordText}</div>
+                </div>
+                <button onclick="deleteBox(${i})" title="삭제">✕</button>
+            </li>`;
+        }).join('');
+    }
+
+    // ── 저장 + 증강 ──
+    async function saveAll() {
+        if (!state.filename || state.boxes.length === 0) {
+            showToast('이미지와 박스가 필요합니다', 'error');
+            return;
+        }
+
+        saveBtn.disabled = true;
+        saveBtn.textContent = '⏳ 처리 중...';
+
+        // v2.0: bbox/polygon 혼합 직렬화
+        const annotations = state.boxes.map(b => {
+            if (b.type === 'polygon') {
+                return {
+                    type: 'polygon',
+                    points: b.points,        // [[x1,y1], [x2,y2], ...] 원본 이미지 좌표
+                    label: b.label,
+                    label_sensitive: b.label_sensitive || false
+                };
+            }
+            // AABB (type: 'bbox' 또는 구버전 호환)
+            return {
+                type: 'bbox',
+                label: b.label,
+                x: b.x, y: b.y, w: b.w, h: b.h,
+                label_sensitive: b.label_sensitive || false
+            };
+        });
+
+        const payload = {
+            filename: state.filename,
+            image_width: state.naturalWidth,
+            image_height: state.naturalHeight,
+            annotations: annotations,
+            augmentation: {
+                enable_homography: document.getElementById('augHomography').checked,
+                enable_noise:      document.getElementById('augNoise').checked,
+                enable_specular:   document.getElementById('augSpecular').checked,
+                enable_shadow:     document.getElementById('augShadow').checked,
+                num_augmented:     parseInt(numAugSlider.value),
+                // ── v1.1 파라미터 ──
+                enable_gamma:      document.getElementById('augGamma').checked,
+                gamma_min:         parseFloat(document.getElementById('gammaMin').value) / 100,
+                gamma_max:         parseFloat(document.getElementById('gammaMax').value) / 100,
+                enable_clahe:      document.getElementById('augClahe').checked,
+                clahe_clip_limit:  parseFloat(document.getElementById('claheClip').value) / 10,
+                enable_cutout:     document.getElementById('augCutout').checked,
+                cutout_area_max:   parseFloat(document.getElementById('cutoutMax').value) / 100,
+                enable_mosaic:          document.getElementById('augMosaic').checked,
+                mosaic_selected_images: mosaicSelectedImages.length > 0 ? mosaicSelectedImages : null,
+                // ── v2.0 신규 ──
+                enable_copy_paste: document.getElementById('augCopyPaste').checked,
+            }
+        };
+
+        try {
+            const res = await fetch('/api/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                showToast(
+                    `✅ 저장 완료! ID: ${data.image_id} | 증강 ${data.augmented_count}장`,
+                    'success'
+                );
+            } else {
+                showToast(`❌ 오류: ${data.message}`, 'error');
+            }
+        } catch (err) {
+            showToast('서버 연결 실패: ' + err.message, 'error');
+        }
+
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 저장 및 증강 실행';
+    }
+
+    // ── 토스트 메시지 ──
+    function showToast(msg, type = 'info') {
+        const toast = document.getElementById('toast');
+        toast.textContent = msg;
+        toast.className = `toast ${type} show`;
+        setTimeout(() => { toast.classList.remove('show'); }, 3000);
+    }
+
+    // ── 윈도우 리사이즈 대응 ──
+    window.addEventListener('resize', () => {
+        if (state.imageLoaded) {
+            fitCanvasToContainer();
+            redraw();
+        }
+    });
+
+    </script>
+</body>
+</html>
