@@ -1,0 +1,56 @@
+﻿Downloaded Titanic5 OK
+Columns: ['pclass', 'survived', 'name', 'sex', 'age', 'sibsp', 'parch', 'ticket', 'fare', 'cabin', 'embarked', 'boat', 'body', 'home_dest']
+Shape: (1309, 14)
+
+Male Titles:
+Title
+Mr          757
+Master       61
+Rev           8
+Dr            7
+Col           4
+Major         2
+Capt          1
+Sir           1
+Jonkheer      1
+Don           1
+Name: count, dtype: int64
+
+Female Titles:
+Title
+Miss    260
+Mrs     197
+Mlle      2
+Ms        2
+Mme       1
+Lady      1
+Dr        1
+Dona      1
+Name: count, dtype: int64
+
+Surnames with BOTH Mr and Mrs on board: 119 / 650 Mr-surnames
+  => These are likely married couples travelling together
+
+Mr passengers: 757
+Mr survived:   123 / 757
+Mr age stats:  mean=32.3, median=29.0
+Mr parch>0:    71  (has children/parents aboard)
+Mr sibsp>=1:   158  (has spouse/sibling aboard)
+
+HasWifeAboard distribution:
+               survived      
+                   mean count
+HasWifeAboard                
+0              0.411662  1149
+1              0.168750   160
+
+Mr with parch>0: 71 (likely has children aboard)
+             age      parch  EstChildAge   survived
+count  66.000000  71.000000    66.000000  71.000000
+mean   35.333333   1.704225    10.333333   0.169014
+std    14.169396   1.366898    14.169396   0.377432
+min    14.000000   1.000000   -11.000000   0.000000
+25%    23.000000   1.000000    -2.000000   0.000000
+50%    36.250000   1.000000    11.250000   0.000000
+75%    43.000000   2.000000    18.000000   0.000000
+max    65.000000   9.000000    40.000000   1.000000
