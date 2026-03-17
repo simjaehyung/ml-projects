@@ -53,9 +53,9 @@ Since this model operates on static, structured tabular data, it is excellent fo
 4. **Data Normalization / Standard Scaling**: Adjusting numeric features (like Age or Fare) so they share a common scale (usually a mean of 0 and standard deviation of 1). This stops large numbers from dominating the model logic.
 5. **Variance in Seed Tests**: Running the exact same algorithm code multiple times can lead to different results purely based on how data is randomly shuffled. Variance measures how "jumpy" or unstable those scores are.
 """
-    with open("../notion_report.md", "w", encoding="utf-8") as file:
+    with open("../reports/notion_report.md", "w", encoding="utf-8") as file:
         file.write(report)
-    print("Report successfully saved to notion_report.md")
+    print("Report successfully saved to reports/notion_report.md")
 
 if __name__ == "__main__":
     start_time = time.time()

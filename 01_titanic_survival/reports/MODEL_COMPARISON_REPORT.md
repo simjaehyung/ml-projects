@@ -11,11 +11,11 @@
 
 ### 대시보드 (6개 차트 통합)
 
-![Model Comparison Dashboard](reports/figures/model_comparison_dashboard.png)
+![Model Comparison Dashboard](figures/model_comparison_dashboard.png)
 
 ### 특성 중요도 (Random Forest)
 
-![Feature Importance](reports/figures/feature_importance.png)
+![Feature Importance](figures/feature_importance.png)
 
 ---
 
