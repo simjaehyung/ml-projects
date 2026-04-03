@@ -1,0 +1,12 @@
+{
+  "experiment_root": "c:/Users/jhsim/Erica261/M.L/projects/04_canon_project/outputs/experiment2",
+  "gate_per_class": 40,
+  "classify_per_class": 20,
+  "val_ratio": 0.2,
+  "image_size": 224,
+  "batch_size": 16,
+  "epochs": 1,
+  "lr": 0.0002,
+  "gate_threshold": 0.5,
+  "seed": 42
+}
