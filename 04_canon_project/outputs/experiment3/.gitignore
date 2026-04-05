@@ -1,0 +1,4 @@
+artifacts/
+generated/
+reports/
+**/__pycache__/
