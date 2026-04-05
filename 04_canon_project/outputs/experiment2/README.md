@@ -2,6 +2,12 @@
 
 Deployable baseline state-machine program (active learning excluded for now).
 
+## GitHub Share Status
+
+This experiment2 baseline has already been pushed to GitHub on the `feature/experiment2-baseline-sm` branch.
+Current tracked commit: `89fdb6b`.
+Remote repository: `https://github.com/simjaehyung/ml-projects.git`
+
 ## Quick Start
 
 ```powershell
